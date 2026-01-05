@@ -144,4 +144,24 @@ class TaskApiService {
       throw Exception('Error saat update tugas: $e');
     }
   }
+
+  // DELETE task
+  Future<void> deleteTask(int taskId) async {
+    try {
+      final url = Uri.parse('${ApiConfig.tasksUrl}?id=eq.$taskId');
+      final response = await http.delete(
+        url,
+        headers: ApiConfig.headers,
+      );
+
+      if (response.statusCode == 204 || response.statusCode == 200) {
+        // Success - 204 No Content or 200 OK
+        return;
+      } else {
+        throw Exception('Gagal menghapus tugas: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error saat menghapus tugas: $e');
+    }
+  }
 }

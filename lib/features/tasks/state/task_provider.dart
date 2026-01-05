@@ -155,6 +155,26 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
+  // Delete task
+  Future<bool> deleteTask(int taskId) async {
+    _isLoading = true;
+    _errorMessage = '';
+    notifyListeners();
+
+    try {
+      await _apiService.deleteTask(taskId);
+      _tasks.removeWhere((task) => task.id == taskId);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   // Toggle task completion
   Future<bool> toggleTaskCompletion(int taskId, bool isDone) async {
     _isLoading = true;

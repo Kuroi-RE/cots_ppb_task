@@ -10,12 +10,14 @@ class TaskCard extends StatelessWidget {
   final Task task;
   final VoidCallback? onTap;
   final Function(bool?)? onCheckChanged;
+  final VoidCallback? onDelete;
 
   const TaskCard({
     super.key,
     required this.task,
     this.onTap,
     this.onCheckChanged,
+    this.onDelete,
   });
 
   String _formatDate(String dateStr) {
@@ -29,7 +31,7 @@ class TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final card = Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       elevation: 2,
       shadowColor: AppColors.shadow,
@@ -143,5 +145,70 @@ class TaskCard extends StatelessWidget {
         ),
       ),
     );
+
+    // Wrap with Dismissible if onDelete is provided
+    if (onDelete != null) {
+      return Dismissible(
+        key: Key(task.id?.toString() ?? task.title),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          margin: const EdgeInsets.only(bottom: AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.error,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: AppSpacing.lg),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.delete_outline,
+                color: Colors.white,
+                size: 32,
+              ),
+              SizedBox(height: AppSpacing.xs),
+              Text(
+                'Hapus',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        confirmDismiss: (direction) async {
+          return await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Hapus Tugas'),
+              content: const Text(
+                'Apakah Anda yakin ingin menghapus tugas ini? Tindakan ini tidak dapat dibatalkan.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Batal'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                  ),
+                  child: const Text('Hapus'),
+                ),
+              ],
+            ),
+          );
+        },
+        onDismissed: (direction) {
+          onDelete!();
+        },
+        child: card,
+      );
+    }
+
+    return card;
   }
 }

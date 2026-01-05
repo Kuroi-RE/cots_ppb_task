@@ -285,6 +285,30 @@ class _TaskListPageState extends State<TaskListPage> {
                                   );
                                 }
                               },
+                              onDelete: task.id != null
+                                  ? () async {
+                                      final success = await taskProvider.deleteTask(task.id!);
+                                      if (success && mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Tugas berhasil dihapus'),
+                                            backgroundColor: AppColors.success,
+                                          ),
+                                        );
+                                      } else if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              taskProvider.errorMessage.isNotEmpty
+                                                  ? taskProvider.errorMessage
+                                                  : 'Gagal menghapus tugas',
+                                            ),
+                                            backgroundColor: AppColors.error,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  : null,
                             );
                           },
                         ),
