@@ -59,26 +59,40 @@ class TaskProvider extends ChangeNotifier {
   List<Task> get nearestTasks {
     final now = DateTime.now();
     final startDate = now.add(const Duration(days: 1)); // H-1
-    final endDate = now.add(const Duration(days: 3));   // H-3
-    
+    final endDate = now.add(const Duration(days: 3)); // H-3
+
     // Filter tasks with deadline between H-1 and H-3, excluding completed
     final filteredTasks = _tasks.where((task) {
       if (task.status == 'SELESAI') return false;
-      
+
       try {
         final deadline = DateTime.parse(task.deadline);
         // Reset time to midnight for date comparison
-        final deadlineDate = DateTime(deadline.year, deadline.month, deadline.day);
-        final startDateMidnight = DateTime(startDate.year, startDate.month, startDate.day);
-        final endDateMidnight = DateTime(endDate.year, endDate.month, endDate.day);
-        
-        return deadlineDate.isAfter(startDateMidnight.subtract(const Duration(days: 1))) &&
-               deadlineDate.isBefore(endDateMidnight.add(const Duration(days: 1)));
+        final deadlineDate = DateTime(
+          deadline.year,
+          deadline.month,
+          deadline.day,
+        );
+        final startDateMidnight = DateTime(
+          startDate.year,
+          startDate.month,
+          startDate.day,
+        );
+        final endDateMidnight = DateTime(
+          endDate.year,
+          endDate.month,
+          endDate.day,
+        );
+
+        return deadlineDate.isAfter(
+              startDateMidnight.subtract(const Duration(days: 1)),
+            ) &&
+            deadlineDate.isBefore(endDateMidnight.add(const Duration(days: 1)));
       } catch (e) {
         return false;
       }
     }).toList();
-    
+
     // Sort by deadline (nearest first)
     filteredTasks.sort((a, b) {
       try {
@@ -89,7 +103,7 @@ class TaskProvider extends ChangeNotifier {
         return 0;
       }
     });
-    
+
     return filteredTasks;
   }
 
