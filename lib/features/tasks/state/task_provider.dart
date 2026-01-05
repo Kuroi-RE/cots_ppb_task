@@ -10,19 +10,38 @@ class TaskProvider extends ChangeNotifier {
   bool _isLoading = false;
   String _errorMessage = '';
   String? _selectedStatus;
+  String _searchQuery = '';
 
   // Getters
   List<Task> get tasks => _tasks;
   bool get isLoading => _isLoading;
   String get errorMessage => _errorMessage;
   String? get selectedStatus => _selectedStatus;
+  String get searchQuery => _searchQuery;
 
-  // Get tasks filtered by current selected status
+  // Get tasks filtered by current selected status and search query
   List<Task> get filteredTasks {
-    if (_selectedStatus == null || _selectedStatus!.isEmpty) {
-      return _tasks;
+    List<Task> filtered = _tasks;
+
+    // Filter by status
+    if (_selectedStatus != null && _selectedStatus!.isNotEmpty) {
+      filtered = filtered.where((task) => task.status == _selectedStatus).toList();
     }
-    return _tasks.where((task) => task.status == _selectedStatus).toList();
+
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((task) {
+        final title = task.title.toLowerCase();
+        final course = task.course.toLowerCase();
+        final note = task.note.toLowerCase();
+        return title.contains(query) || 
+               course.contains(query) || 
+               note.contains(query);
+      }).toList();
+    }
+
+    return filtered;
   }
 
   // Get task counts by status
@@ -37,6 +56,18 @@ class TaskProvider extends ChangeNotifier {
   // Set selected status for filtering
   void setSelectedStatus(String? status) {
     _selectedStatus = status;
+    notifyListeners();
+  }
+
+  // Set search query for filtering
+  void setSearchQuery(String query) {
+    _searchQuery = query;
+    notifyListeners();
+  }
+
+  // Clear search query
+  void clearSearch() {
+    _searchQuery = '';
     notifyListeners();
   }
 

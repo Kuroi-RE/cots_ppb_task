@@ -15,6 +15,8 @@ class TaskListPage extends StatefulWidget {
 }
 
 class _TaskListPageState extends State<TaskListPage> {
+  final TextEditingController _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -25,6 +27,12 @@ class _TaskListPageState extends State<TaskListPage> {
         provider.fetchTasks();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -105,6 +113,61 @@ class _TaskListPageState extends State<TaskListPage> {
 
           return Column(
             children: [
+              // Search Bar
+              Container(
+                color: AppColors.surface,
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (value) {
+                    taskProvider.setSearchQuery(value);
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Cari tugas berdasarkan judul, mata kuliah, atau catatan...',
+                    hintStyle: AppTypography.bodyMedium.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: AppColors.textSecondary,
+                    ),
+                    suffixIcon: taskProvider.searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(
+                              Icons.clear,
+                              color: AppColors.textSecondary,
+                            ),
+                            onPressed: () {
+                              _searchController.clear();
+                              taskProvider.clearSearch();
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: AppColors.background,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.md,
+                    ),
+                  ),
+                ),
+              ),
+
               // Filter Tabs
               Container(
                 color: AppColors.surface,
@@ -169,23 +232,30 @@ class _TaskListPageState extends State<TaskListPage> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                Icons.inbox_outlined,
+                                taskProvider.searchQuery.isNotEmpty
+                                    ? Icons.search_off
+                                    : Icons.inbox_outlined,
                                 size: 80,
                                 color: AppColors.textTertiary,
                               ),
                               const SizedBox(height: AppSpacing.lg),
                               Text(
-                                'Belum Ada Tugas',
+                                taskProvider.searchQuery.isNotEmpty
+                                    ? 'Tidak Ada Hasil'
+                                    : 'Belum Ada Tugas',
                                 style: AppTypography.h3.copyWith(
                                   color: AppColors.textSecondary,
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.sm),
                               Text(
-                                'Tambahkan tugas pertama Anda',
+                                taskProvider.searchQuery.isNotEmpty
+                                    ? 'Tidak ada tugas yang cocok dengan pencarian Anda'
+                                    : 'Tambahkan tugas pertama Anda',
                                 style: AppTypography.bodyMedium.copyWith(
                                   color: AppColors.textTertiary,
                                 ),
+                                textAlign: TextAlign.center,
                               ),
                             ],
                           ),

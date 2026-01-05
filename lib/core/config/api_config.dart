@@ -15,10 +15,12 @@ class ApiConfig {
   static Map<String, String> get headers => {
     'apikey': supabaseAnonKey,
     'Authorization': 'Bearer $supabaseAnonKey',
+    'Content-Type': 'application/json',
   };
 
   static Map<String, String> get headersWithContentType => {
-    ...headers,
+    'apikey': supabaseAnonKey,
+    'Authorization': 'Bearer $supabaseAnonKey',
     'Content-Type': 'application/json',
     'Prefer': 'return=representation',
   };
