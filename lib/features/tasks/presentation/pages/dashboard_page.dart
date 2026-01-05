@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/config/route_names.dart';
 import '../../../../core/design_system/colors.dart';
 import '../../../../core/design_system/spacing.dart';
 import '../../../../core/design_system/typography.dart';
+import '../../data/models/task.dart';
 import '../../state/task_provider.dart';
+import '../widgets/status_chip.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -166,6 +169,37 @@ class _DashboardPageState extends State<DashboardPage> {
                     backgroundColor: AppColors.statusTerlambatBg,
                   ),
                   const SizedBox(height: AppSpacing.xxxl),
+
+                  // Nearest Tasks Section
+                  if (taskProvider.nearestTasks.isNotEmpty) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Tugas Terdekat', style: AppTypography.h3),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pushNamed(context, RouteNames.taskList);
+                          },
+                          child: const Text('Lihat Semua'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    ...taskProvider.nearestTasks.map((task) {
+                      return _buildNearestTaskCard(
+                        context: context,
+                        task: task,
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            RouteNames.taskDetail,
+                            arguments: task,
+                          );
+                        },
+                      );
+                    }),
+                    const SizedBox(height: AppSpacing.xxxl),
+                  ],
 
                   // Quick Actions
                   Text('Aksi Cepat', style: AppTypography.h3),
@@ -347,6 +381,116 @@ class _DashboardPageState extends State<DashboardPage> {
                 Icons.arrow_forward_ios,
                 size: AppSpacing.iconSm,
                 color: AppColors.textTertiary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNearestTaskCard({
+    required BuildContext context,
+    required Task task,
+    required VoidCallback onTap,
+  }) {
+    String formatDate(String dateStr) {
+      try {
+        final date = DateTime.parse(dateStr);
+        final now = DateTime.now();
+        final difference = date.difference(now).inDays;
+
+        String relativeTime;
+        if (difference < 0) {
+          relativeTime = '${difference.abs()} hari yang lalu';
+        } else if (difference == 0) {
+          relativeTime = 'Hari ini';
+        } else if (difference == 1) {
+          relativeTime = 'Besok';
+        } else {
+          relativeTime = '$difference hari lagi';
+        }
+
+        final formattedDate = DateFormat('dd MMM yyyy', 'id_ID').format(date);
+        return '$formattedDate ($relativeTime)';
+      } catch (e) {
+        return dateStr;
+      }
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      elevation: 2,
+      shadowColor: AppColors.shadow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      task.title,
+                      style: AppTypography.h4,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  StatusChip(status: task.status),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.book_outlined,
+                    size: AppSpacing.iconSm,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      task.course,
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today_outlined,
+                    size: AppSpacing.iconSm,
+                    color: task.status == 'TERLAMBAT'
+                        ? AppColors.statusTerlambat
+                        : AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      formatDate(task.deadline),
+                      style: AppTypography.bodySmall.copyWith(
+                        color: task.status == 'TERLAMBAT'
+                            ? AppColors.statusTerlambat
+                            : AppColors.textSecondary,
+                        fontWeight: task.status == 'TERLAMBAT'
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

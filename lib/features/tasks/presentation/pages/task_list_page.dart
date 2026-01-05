@@ -123,7 +123,8 @@ class _TaskListPageState extends State<TaskListPage> {
                     taskProvider.setSearchQuery(value);
                   },
                   decoration: InputDecoration(
-                    hintText: 'Cari tugas berdasarkan judul, mata kuliah, atau catatan...',
+                    hintText:
+                        'Cari tugas berdasarkan judul, mata kuliah, atau catatan...',
                     hintStyle: AppTypography.bodyMedium.copyWith(
                       color: AppColors.textTertiary,
                     ),
@@ -287,19 +288,28 @@ class _TaskListPageState extends State<TaskListPage> {
                               },
                               onDelete: task.id != null
                                   ? () async {
-                                      final success = await taskProvider.deleteTask(task.id!);
+                                      final success = await taskProvider
+                                          .deleteTask(task.id!);
                                       if (success && mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           const SnackBar(
-                                            content: Text('Tugas berhasil dihapus'),
+                                            content: Text(
+                                              'Tugas berhasil dihapus',
+                                            ),
                                             backgroundColor: AppColors.success,
                                           ),
                                         );
                                       } else if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                              taskProvider.errorMessage.isNotEmpty
+                                              taskProvider
+                                                      .errorMessage
+                                                      .isNotEmpty
                                                   ? taskProvider.errorMessage
                                                   : 'Gagal menghapus tugas',
                                             ),
