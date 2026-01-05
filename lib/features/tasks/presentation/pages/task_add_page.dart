@@ -1,26 +1,122 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/config/route_names.dart';
 import '../../../../core/design_system/colors.dart';
 import '../../../../core/design_system/spacing.dart';
 import '../../../../core/design_system/typography.dart';
+import '../../data/models/task.dart';
 import '../../state/task_provider.dart';
+import '../widgets/app_text_field.dart';
+import '../widgets/primary_button.dart';
 
-class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key});
+class TaskAddPage extends StatefulWidget {
+  const TaskAddPage({super.key});
 
   @override
-  State<DashboardPage> createState() => _DashboardPageState();
+  State<TaskAddPage> createState() => _TaskAddPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _TaskAddPageState extends State<TaskAddPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _courseController = TextEditingController();
+  final _deadlineController = TextEditingController();
+  final _noteController = TextEditingController();
+
+  String _selectedStatus = 'BERJALAN';
+  bool _isDone = false;
+  DateTime? _selectedDeadline;
+
   @override
-  void initState() {
-    super.initState();
-    // Fetch tasks when page loads
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<TaskProvider>().fetchTasks();
-    });
+  void dispose() {
+    _titleController.dispose();
+    _courseController.dispose();
+    _deadlineController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDeadline ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != _selectedDeadline) {
+      setState(() {
+        _selectedDeadline = picked;
+        _deadlineController.text = DateFormat('dd MMMM yyyy').format(picked);
+      });
+    }
+  }
+
+  String _formatDeadlineForApi(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  Future<void> _saveTask() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_selectedDeadline == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Silakan pilih tanggal tenggat waktu'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final task = Task(
+      title: _titleController.text.trim(),
+      course: _courseController.text.trim(),
+      deadline: _formatDeadlineForApi(_selectedDeadline!),
+      status: _selectedStatus,
+      note: _noteController.text.trim(),
+      isDone: _isDone,
+    );
+
+    final provider = context.read<TaskProvider>();
+    final success = await provider.addTask(task);
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tugas berhasil ditambahkan'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      Navigator.pop(context);
+      // Refresh tasks
+      provider.refreshTasks();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            provider.errorMessage.isNotEmpty
+                ? provider.errorMessage
+                : 'Gagal menambahkan tugas',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -30,327 +126,202 @@ class _DashboardPageState extends State<DashboardPage> {
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
-          'Task Manager',
+          'Tambah Tugas',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: () {
-              context.read<TaskProvider>().refreshTasks();
-            },
-          ),
-        ],
       ),
       body: Consumer<TaskProvider>(
         builder: (context, taskProvider, child) {
-          if (taskProvider.isLoading && taskProvider.tasks.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (taskProvider.errorMessage.isNotEmpty &&
-              taskProvider.tasks.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xxl),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 64,
-                      color: AppColors.error,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Text(
-                      'Terjadi Kesalahan',
-                      style: AppTypography.h3,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      taskProvider.errorMessage,
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    ElevatedButton(
-                      onPressed: () {
-                        taskProvider.refreshTasks();
-                      },
-                      child: const Text('Coba Lagi'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () => taskProvider.refreshTasks(),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(AppSpacing.lg),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Form(
+              key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Greeting
-                  Text('Selamat Datang! 👋', style: AppTypography.h2),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    'Kelola tugas Anda dengan efisien',
-                    style: AppTypography.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xxl),
-
-                  // Summary Cards
-                  Text('Ringkasan Tugas', style: AppTypography.h3),
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // Total Tasks Card
-                  _buildSummaryCard(
-                    context: context,
-                    title: 'Total Tugas',
-                    count: taskProvider.totalTasks,
-                    icon: Icons.assignment_outlined,
-                    color: AppColors.primary,
-                    onTap: () {
-                      Navigator.pushNamed(context, RouteNames.taskList);
+                  // Title Field
+                  AppTextField(
+                    label: 'Judul Tugas *',
+                    hintText: 'Masukkan judul tugas',
+                    controller: _titleController,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Judul tugas tidak boleh kosong';
+                      }
+                      return null;
                     },
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.xl),
 
-                  // Status Cards Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatusCard(
-                          context: context,
-                          title: 'Berjalan',
-                          count: taskProvider.berjalaanCount,
-                          icon: Icons.play_circle_outline,
-                          color: AppColors.statusBerjalan,
-                          backgroundColor: AppColors.statusBerjalaanBg,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: _buildStatusCard(
-                          context: context,
-                          title: 'Selesai',
-                          count: taskProvider.selesaiCount,
-                          icon: Icons.check_circle_outline,
-                          color: AppColors.statusSelesai,
-                          backgroundColor: AppColors.statusSelesaiBg,
-                        ),
-                      ),
-                    ],
+                  // Course Field
+                  AppTextField(
+                    label: 'Mata Kuliah *',
+                    hintText: 'Masukkan nama mata kuliah',
+                    controller: _courseController,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Mata kuliah tidak boleh kosong';
+                      }
+                      return null;
+                    },
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.xl),
 
-                  _buildSummaryCard(
-                    context: context,
-                    title: 'Terlambat',
-                    count: taskProvider.terlambatCount,
-                    icon: Icons.warning_amber_outlined,
-                    color: AppColors.statusTerlambat,
-                    backgroundColor: AppColors.statusTerlambatBg,
+                  // Deadline Field
+                  AppTextField(
+                    label: 'Tenggat Waktu *',
+                    hintText: 'Pilih tanggal tenggat waktu',
+                    controller: _deadlineController,
+                    readOnly: true,
+                    onTap: _selectDate,
+                    suffixIcon: const Icon(
+                      Icons.calendar_today_outlined,
+                      color: AppColors.primary,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Tenggat waktu tidak boleh kosong';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Status Field
+                  Text('Status *', style: AppTypography.label),
+                  const SizedBox(height: AppSpacing.sm),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      color: AppColors.surface,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedStatus,
+                        isExpanded: true,
+                        icon: const Icon(
+                          Icons.arrow_drop_down,
+                          color: AppColors.primary,
+                        ),
+                        style: AppTypography.bodyMedium,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'BERJALAN',
+                            child: Text('Berjalan'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'SELESAI',
+                            child: Text('Selesai'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'TERLAMBAT',
+                            child: Text('Terlambat'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedStatus = value;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Note Field
+                  AppTextField(
+                    label: 'Catatan (Opsional)',
+                    hintText: 'Tambahkan catatan untuk tugas ini',
+                    controller: _noteController,
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Is Done Checkbox
+                  Card(
+                    elevation: 2,
+                    shadowColor: AppColors.shadow,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    ),
+                    child: CheckboxListTile(
+                      value: _isDone,
+                      onChanged: (value) {
+                        setState(() {
+                          _isDone = value ?? false;
+                        });
+                      },
+                      title: Text(
+                        'Tandai sebagai selesai',
+                        style: AppTypography.bodyMedium,
+                      ),
+                      subtitle: Text(
+                        'Centang jika tugas sudah selesai',
+                        style: AppTypography.bodySmall,
+                      ),
+                      activeColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusMd,
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xxxl),
 
-                  // Quick Actions
-                  Text('Aksi Cepat', style: AppTypography.h3),
-                  const SizedBox(height: AppSpacing.lg),
-
-                  _buildActionButton(
-                    context: context,
-                    title: 'Lihat Semua Tugas',
-                    icon: Icons.list_alt,
-                    onTap: () {
-                      Navigator.pushNamed(context, RouteNames.taskList);
-                    },
+                  // Save Button
+                  PrimaryButton(
+                    text: 'Simpan Tugas',
+                    icon: Icons.save_outlined,
+                    onPressed: _saveTask,
+                    isLoading: taskProvider.isLoading,
                   ),
                   const SizedBox(height: AppSpacing.md),
 
-                  _buildActionButton(
-                    context: context,
-                    title: 'Tambah Tugas Baru',
-                    icon: Icons.add_circle_outline,
-                    color: AppColors.primary,
-                    onTap: () {
-                      Navigator.pushNamed(context, RouteNames.addTask);
-                    },
+                  // Cancel Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton(
+                      onPressed: taskProvider.isLoading
+                          ? null
+                          : () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusMd,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        'Batal',
+                        style: AppTypography.button.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pushNamed(context, RouteNames.addTask);
-        },
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard({
-    required BuildContext context,
-    required String title,
-    required int count,
-    required IconData icon,
-    required Color color,
-    Color? backgroundColor,
-    VoidCallback? onTap,
-  }) {
-    return Card(
-      elevation: 2,
-      shadowColor: AppColors.shadow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                ),
-                child: Icon(icon, size: AppSpacing.iconXl, color: color),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      count.toString(),
-                      style: AppTypography.h2.copyWith(color: color),
-                    ),
-                  ],
-                ),
-              ),
-              if (onTap != null)
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: AppSpacing.iconSm,
-                  color: AppColors.textTertiary,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusCard({
-    required BuildContext context,
-    required String title,
-    required int count,
-    required IconData icon,
-    required Color color,
-    required Color backgroundColor,
-  }) {
-    return Card(
-      elevation: 2,
-      shadowColor: AppColors.shadow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: AppSpacing.iconLg, color: color),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              count.toString(),
-              style: AppTypography.h2.copyWith(color: color),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(title, style: AppTypography.bodySmall.copyWith(color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required BuildContext context,
-    required String title,
-    required IconData icon,
-    Color? color,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      elevation: 2,
-      shadowColor: AppColors.shadow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: AppSpacing.iconLg,
-                color: color ?? AppColors.textPrimary,
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Text(
-                  title,
-                  style: AppTypography.h4.copyWith(
-                    color: color ?? AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: AppSpacing.iconSm,
-                color: AppColors.textTertiary,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
